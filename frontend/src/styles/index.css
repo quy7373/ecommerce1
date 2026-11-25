@@ -1,0 +1,194 @@
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Space Grotesk Variable", "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --color-canvas: #F6F5F1;
+  --color-surface: #FFFFFF;
+  --color-well: #EFEDE7;
+  --color-ink: #11151C;
+  --color-ink-muted: #555E6D;
+  --color-line: #E6E4DD;
+  --color-cobalt: #0F4C81;
+  --color-cobalt-hover: #0B3B66;
+  --color-spruce: #157347;
+  --color-ochre: #9A5B13;
+  --color-oxide: #B42318;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    scroll-behavior: smooth;
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  html.dark {
+    --color-canvas: #0B0F17;
+    --color-surface: #131926;
+    --color-well: #1B2333;
+    --color-ink: #F1F5F9;
+    --color-ink-muted: #94A3B8;
+    --color-line: #253045;
+    --color-cobalt: #3B9EFF;
+    --color-cobalt-hover: #60B2FF;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-cobalt);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Global Dark Mode surface & token adaptation */
+.dark body,
+.dark .bg-\[\#F6F5F1\],
+.dark .bg-\[\#F7F8F9\] {
+  background-color: #0B0F17 !important;
+  color: #F1F5F9;
+}
+
+.dark .bg-white,
+.dark .bg-white\/85,
+.dark .bg-white\/90,
+.dark .bg-white\/95,
+.dark .bg-white\/80 {
+  background-color: #131926 !important;
+}
+
+.dark .bg-\[\#FAF9F6\],
+.dark .bg-\[\#FAF9F6\]\/95,
+.dark .bg-\[\#FAF9F6\]\/60 {
+  background-color: #161E2E !important;
+}
+
+.dark .bg-\[\#EFEDE7\],
+.dark .bg-\[\#F3F2EE\],
+.dark .bg-\[\#ECEFF2\] {
+  background-color: #1B2333 !important;
+}
+
+.dark .border-\[\#E6E4DD\],
+.dark .border-\[\#DDE2E7\],
+.dark .border-\[\#EFEDE7\],
+.dark .border-\[\#F0EEE8\],
+.dark .border-\[\#E2DFD7\] {
+  border-color: #253045 !important;
+}
+
+.dark .border-\[\#D8D5CC\],
+.dark .border-\[\#CBD2D9\] {
+  border-color: #324059 !important;
+}
+
+.dark .divide-\[\#EFEDE7\] > :not(:last-child),
+.dark .divide-\[\#DDE2E7\] > :not(:last-child) {
+  border-color: #253045 !important;
+}
+
+.dark .text-\[\#11151C\],
+.dark .text-\[\#161B22\] {
+  color: #F1F5F9 !important;
+}
+
+.dark .text-\[\#555E6D\],
+.dark .text-\[\#525C68\],
+.dark .text-\[\#3E4752\] {
+  color: #94A3B8 !important;
+}
+
+.dark .text-\[\#6B7684\],
+.dark .text-\[\#7A828F\] {
+  color: #7E8CA3 !important;
+}
+
+.dark .text-\[\#0F4C81\] {
+  color: #60B2FF !important;
+}
+
+.dark .bg-\[\#EDF4FA\] {
+  background-color: rgba(59, 158, 255, 0.14) !important;
+}
+
+.dark .border-\[\#D4E3F1\],
+.dark .border-\[\#C4DCF0\] {
+  border-color: rgba(59, 158, 255, 0.3) !important;
+}
+
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: #0F1522 !important;
+  color: #F1F5F9 !important;
+  border-color: #324059 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748B !important;
+}
+
+.dark .hover\:bg-\[\#EFEDE7\]:hover,
+.dark .hover\:bg-\[\#FAF9F6\]:hover,
+.dark .hover\:bg-\[\#F7F8F9\]:hover {
+  background-color: #1F2A3E !important;
+}
+
+.bg-hero-grid {
+  background-image:
+    radial-gradient(circle at 100% 0%, rgba(15, 76, 129, 0.09), transparent 46%),
+    radial-gradient(circle at 0% 100%, rgba(21, 115, 71, 0.05), transparent 40%),
+    linear-gradient(to right, rgba(17, 21, 28, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(17, 21, 28, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+}
+
+.dark .bg-hero-grid {
+  background-image:
+    radial-gradient(circle at 100% 0%, rgba(59, 158, 255, 0.14), transparent 46%),
+    radial-gradient(circle at 0% 100%, rgba(34, 197, 94, 0.07), transparent 40%),
+    linear-gradient(to right, rgba(241, 245, 249, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(241, 245, 249, 0.04) 1px, transparent 1px);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

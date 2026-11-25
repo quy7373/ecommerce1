@@ -1,0 +1,51 @@
+# Security testing and release gates
+
+Task SEC-001. Verifies [SEC-01..15](security-requirements.md) and [STRIDE threats](threat-model.md). This plan does not report tests as implemented/passing. Application code, deployment and package scripts were absent at authoring. Documentation checks alone are not application security evidence.
+
+## Evidence model
+
+For each release candidate record artifact digest/commit, dependency lockfile and SBOM hashes, environment/fixture version, test tool/version/configuration, control/threat IDs, execution time, result, redacted evidence path, defect owner and reviewer. CI artifacts are access-controlled, encrypted and purged after30days unless an approved investigation hold applies. Never capture tokens, addresses or payment fields in Playwright traces/HAR/DAST reports.
+
+Create an ASVS5.0.0 assessment ledger before production review: exact versioned requirement ID, L1/L2, applicable/N/A with rationale, mapped local SEC IDs, implementation reference, automated/manual test, evidence, pass/fail/not-tested, reviewer and review date. Import all applicable L1 and L2 rows from the [official dataset](https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.csv). Chapter mappings in our requirements are orientation only. Unassessed/not-tested applicable rows remain open; do not label the application ASVS compliant from scanner output.
+
+## Automated and manual verification matrix
+
+| Suite | Layer / execution | Negative/acceptance cases | Controls / threats |
+|---|---|---|---|
+| AUTH-SEC | Jest + Supertest + sandbox smoke | State/nonce/binding mismatch, expired/reused attempt, verifier/code replay, malformed/forged Google token, iss/aud/azp/exp/iat errors, unverified email, concurrent registration/email collision, bad redirect | SEC-01; T-01 |
+| SESSION-SEC | Unit/integration/Playwright | alg=none/wrong alg/kid/signature, sid-sub mismatch, future iat, absolute expiry, logout/revoke-all/role removal, cookie attributes/path, storage absence, MFA/recent challenge forged/missing/old | SEC-02/03; T-02 |
+| BOLA-SEC | Supertest role/object matrix | Every method with anonymous/customerA/customerB/admin, foreign/nonexistent IDs same404, nested IDs, list counts, cancellation/session ownership, parallel state changes | SEC-03; T-03 |
+| INPUT-SEC | Fuzz/schema/property tests | Unknown fields/role/status/price injection, duplicate keys/queries, prototype keys, invalid UTF-8/types/UUIDs/numbers, wildcard search, SQL/template/regex payloads, money bounds | SEC-04; T-04 |
+| BROWSER-SEC | Playwright + authenticated DAST | Stored/reflected/DOM XSS from catalog/errors/chat/citations, CSRF missing/mismatched token/Origin, cross-tab token rotation, malicious link/image protocols, no private caching/console logs | SEC-05/06; T-09 |
+| NETWORK-SEC | Deployment tests/scanners | TLS downgrade/invalid cert/hostname, HSTS/CSP/header coverage on errors/assets, CORS null/suffix/unapproved origins, forged proxy/IP/MFA headers, private/metadata egress denied, DB ports not public | SEC-05/07; T-14 |
+| ABUSE-SEC | Two API replicas + load tests | Quotas combined across replicas/IPv4/IPv6, expensive/support global caps, pending-order count race, user isolation under shared IP, limiter outage503, body/decompression/request/DB/provider timeouts | SEC-07/09/11; T-12 |
+| PAY-SEC | Signed fixture events + Stripe test smoke | Raw body unchanged, invalid/stale signature, secret rotation, live event rejection, wrong account/session/mode/currency/amount, forged redirect, no PAN/CVV in DB/logs/traces | SEC-08; T-05 |
+| RACE-SEC | Real PostgreSQL, multiple connections/workers |20 concurrent final-unit orders; duplicate and different events same payment; create/pay/cancel/expire/admin-stock races; crash before/after remote side effect/local commit; provider params identical on replay;24h ambiguity enters review | SEC-09; T-06/16 |
+| CRYPTO-SEC | Integration + infrastructure review | At-rest field ciphertext not Address JSON, AAD wrong-row/tag tamper fails, reader/worker/support cannot decrypt, TLS DB verified, negative grants, key rotation overlap/revocation and restore | SEC-10; T-08 |
+| LLM-SEC / KNOWLEDGE-SEC | Adapter/unit/network + model evaluation | >=100 adversarial cases, >=50 answerable questions; no private access/tool capability, prompt/source injection, draft/retired exclusion/revocation race, PII filtering/echo, citation entailment, model failure, hard budget stop, no prompt logging | SEC-11; T-10/11 |
+| AUDIT-SEC | Integration + sink/alert drill | Every required event schema/redaction, atomic audit/outbox rollback, duplicate export dedup, collector outage recovery, app cannot update/delete sink, forged log delimiters, alarm delivery<=5min | SEC-12; T-07/16 |
+| PRIVACY-SEC | Integration + operator workflow review | Verified scoped export, adversarial requester, daily retention purge/holds, identity/address erasure preserving payment dedup, processor propagation, restored tombstone replay before serving | SEC-13; T-15 |
+| PIPELINE-SEC | CI checks + manual review | SAST, secret scan, SCA lockfiles/transitive dependencies, image/IaC scans, SBOM/provenance, no privileged/root runtime or insecure defaults, no production test identity/provider adapter | SEC-14; T-13 |
+| DR-SEC / FAILURE-SEC / IR-SEC | Isolated restore and tabletop | Lost DB/KMS/limiter/audit/provider, no fail-open, RPO<=15min/RTO<=4h, compromised JWT/provider secret, privacy incident communications, queue/inventory reconciliation | SEC-15; T-15/16 |
+
+Use actual Express middleware and PostgreSQL migrations for authorization/concurrency/constraint tests; SQLite or mocked locks are insufficient. Stub external adapters deterministically for failure injection; perform separate Google/Stripe sandbox smoke tests with synthetic data. Never attack a provider or production system without explicit test authorization. AI provider evaluation uses only approved public/synthetic data and configured spend limits.
+
+## CI and review cadence
+
+On each change: type/lint/build, Jest unit/security suites, secret scanning including repository history when available, dependency and static analysis. On PR/release integration: disposable migrated PostgreSQL, Supertest authorization/race suites, Playwright seven-screen/browser security, container/IaC scans. On release candidate: authenticated staging DAST, provider sandbox smoke, header/TLS/grant review and updated ASVS applicability/evidence. Run dependency advisory monitoring daily; target triage critical within24h and high within3days, without permitting a known exploitable issue into a new release.
+
+Suggested tool classes: maintained SAST rules for JS/TS, secret detector, OSV-compatible dependency scanner, container/IaC scanner and OWASP ZAP authenticated DAST. Integrator selects/pins maintained exact tools/versions; no script names or installed scanner are assumed here. CI scanners use read-only permissions, short-lived credentials and egress restrictions. Do not run untrusted PR code with deployment secrets. Pin dependencies/actions/images by reviewed versions/digests; verify lockfile install and artifact provenance.
+
+Manual security review before launch and after major trust-boundary changes covers authentication/MFA, object authorization, payment state machine, privacy lifecycle, AI isolation, SQL/worker locking, CSP and deployment secrets. Commission an independent penetration test for real-user release, scoped to authenticated customer/admin workflows and business logic; scanners alone cannot validate these controls. Repeat at least annually and after a significant redesign.
+
+## Release-blocking decision
+
+Block any real-user deployment if any SEC-01..15 lacks required evidence; any applicable ASVS L1/L2 row is failed/unassessed without approved applicability resolution; a critical boundary/ownership/payment/PII case fails; any known exploitable high/critical issue or untriaged high/critical scanner finding exists; secrets/card data appear in artifacts; or MFA/privacy/backup/on-call decisions remain unresolved. Scanners' false positives require documented reviewer evidence, not silent suppression. Medium/low residual risks require owner, remediation date and compensating controls. Mandatory critical controls cannot be waived by a generic risk acceptance.
+
+Require all named deterministic security tests pass, zero unauthorized private reads/actions in adversarial suites, no draft citations, and chatbot acceptance thresholds from [chatbot security](chatbot-security.md). Record skips explicitly; a skipped security suite is not a pass. Re-test after fixes and deploy only the tested digest following user approval. Security approval is an attributable release review, not a claim of perfect security.
+
+## Documentation delivery checks
+
+Architect verifies nine requested files exist and contain substantive sections, local links resolve, fences balance, STRIDE categories and SEC-01..15 are covered, all five principal risks have tests, existing API/model/deployment deltas are linked and only docs files changed. Record actual check results separately from future application suites. Mermaid source can be checked structurally; rendering is a separate optional tool check and must not be claimed without execution.
+
+Delivery validation on2026-11-23: Node-based checks passed229 assertions across25 Markdown files, all nine requested security documents and37 local links. They checked substantive sections, task IDs, fences/whitespace/newlines, fifteen acceptance criteria mapped in the threat/test tables, sixteen threat IDs, all six STRIDE categories and six trust boundaries, plus host-cookie paths, quota error parity, frozen provider expiry, encrypted-storage mapping, audit outbox, coordination status and restored-deletion controls. The initial checker was corrected to expand slash-grouped control IDs before the passing run. Manual consistency review covered API/storage/deployment deltas. Application Jest/Supertest/Playwright, security scanners, provider/deployment verification and graphical Mermaid rendering were NOT run because application/tooling did not exist. These checks validate documentation, not control effectiveness. No commit or non-doc edit was made.

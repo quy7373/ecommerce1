@@ -1,0 +1,434 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  CANCELLED
+  EXPIRED
+  PAYMENT_REVIEW
+}
+
+enum CheckoutState {
+  NOT_STARTED
+  CREATING
+  READY
+  RECONCILING
+  CLOSED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+}
+
+enum PaymentStatus {
+  SUCCEEDED
+  REVIEW
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  REVIEW
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum AuditResourceType {
+  PRODUCT
+  ORDER
+}
+
+enum AuditAction {
+  CREATE_PRODUCT
+  UPDATE_PRODUCT
+  ARCHIVE_PRODUCT
+  UPDATE_ORDER_STATUS
+}
+
+enum SecurityAuditOutcome {
+  SUCCESS
+  DENIED
+  FAILURE
+  REVIEW
+}
+
+enum KnowledgeDocumentStatus {
+  DRAFT
+  APPROVED
+  RETIRED
+}
+
+enum AuthActionTokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum AuthMailTemplate {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+  PASSWORD_CHANGED
+}
+
+enum AuthMailOutboxStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id              String    @id @db.Uuid
+  googleSubject   String?   @unique
+  email           String    @unique
+  emailVerifiedAt DateTime? @db.Timestamptz(6)
+  displayName     String
+  role            Role      @default(CUSTOMER)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+
+  credential         PasswordCredential?
+  authActionTokens   AuthActionToken[]
+  sessions           AuthSession[]
+  cart               Cart?
+  orders             Order[]
+  idempotencyRecords IdempotencyRecord[]
+  auditLogs          AuditLog[]
+}
+
+model PasswordCredential {
+  userId            String   @id @db.Uuid
+  passwordHash      String
+  version           Int      @default(1)
+  passwordChangedAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model AuthActionToken {
+  id                String                 @id @db.Uuid
+  purpose           AuthActionTokenPurpose
+  tokenHash         String                 @unique @db.Char(64)
+  email             String
+  userId            String?                @db.Uuid
+  credentialVersion Int?
+  expiresAt         DateTime               @db.Timestamptz(6)
+  consumedAt        DateTime?              @db.Timestamptz(6)
+  createdAt         DateTime               @default(now()) @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([purpose, email, expiresAt])
+  @@index([userId, purpose, expiresAt])
+}
+
+model AuthMailOutbox {
+  id               String               @id @db.Uuid
+  dedupeKey        String               @unique
+  template         AuthMailTemplate
+  encryptedPayload Json?
+  status           AuthMailOutboxStatus @default(PENDING)
+  attempts         Int                  @default(0)
+  nextAttemptAt    DateTime             @default(now()) @db.Timestamptz(6)
+  claimUntil       DateTime?            @db.Timestamptz(6)
+  sentAt           DateTime?            @db.Timestamptz(6)
+  lastErrorCode    String?
+  createdAt        DateTime             @default(now()) @db.Timestamptz(6)
+
+  @@index([status, nextAttemptAt])
+}
+
+model AuthSession {
+  id            String    @id @db.Uuid
+  userId        String    @db.Uuid
+  csrfTokenHash String
+  expiresAt     DateTime  @db.Timestamptz(6)
+  revokedAt     DateTime? @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, expiresAt])
+}
+
+model OAuthAttempt {
+  id                    String    @id @db.Uuid
+  stateHash             String    @unique
+  browserBindingHash    String
+  nonceHash             String
+  encryptedCodeVerifier String
+  expiresAt             DateTime  @db.Timestamptz(6)
+  consumedAt            DateTime? @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([expiresAt])
+}
+
+model Category {
+  id        String   @id @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  products Product[]
+}
+
+model Product {
+  id            String   @id @db.Uuid
+  categoryId    String   @db.Uuid
+  sku           String   @unique
+  name          String
+  description   String   @default("")
+  price         Int
+  currency      String   @default("USD")
+  imageUrl      String?
+  stockOnHand   Int
+  stockReserved Int      @default(0)
+  active        Boolean  @default(true)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  category     Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  reservations InventoryReservation[]
+
+  @@index([categoryId, active, price, id])
+  @@index([active, createdAt, id])
+}
+
+model Cart {
+  id        String   @id @db.Uuid
+  userId    String   @unique @db.Uuid
+  version   Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items  CartItem[]
+  orders Order[]
+}
+
+model CartItem {
+  id        String   @id @db.Uuid
+  cartId    String   @db.Uuid
+  productId String   @db.Uuid
+  quantity  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id                         String        @id @db.Uuid
+  userId                     String        @db.Uuid
+  cartId                     String        @db.Uuid
+  cartVersion                Int
+  status                     OrderStatus   @default(PENDING_PAYMENT)
+  shippingAddress            Json
+  subtotal                   Int
+  shippingTotal              Int
+  taxTotal                   Int
+  grandTotal                 Int
+  currency                   String        @default("USD")
+  reservationExpiresAt       DateTime      @db.Timestamptz(6)
+  stripeSessionId            String?       @unique
+  checkoutState              CheckoutState @default(NOT_STARTED)
+  checkoutClaimUntil         DateTime?     @db.Timestamptz(6)
+  checkoutFirstAttemptAt     DateTime?     @db.Timestamptz(6)
+  checkoutRequestedExpiresAt DateTime?     @db.Timestamptz(6)
+  cancellationRequestedAt    DateTime?     @db.Timestamptz(6)
+  paidAt                     DateTime?     @db.Timestamptz(6)
+  version                    Int           @default(1)
+  createdAt                  DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt                  DateTime      @updatedAt @db.Timestamptz(6)
+
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cart          Cart                   @relation(fields: [cartId], references: [id], onDelete: Restrict)
+  items         OrderItem[]
+  reservations  InventoryReservation[]
+  payment       Payment?
+  webhookEvents WebhookEvent[]
+
+  @@index([userId, createdAt, id])
+  @@index([status, reservationExpiresAt])
+}
+
+model OrderItem {
+  id        String @id @db.Uuid
+  orderId   String @db.Uuid
+  productId String @db.Uuid
+  sku       String
+  name      String
+  unitPrice Int
+  quantity  Int
+  lineTotal Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productId])
+}
+
+model InventoryReservation {
+  id         String            @id @db.Uuid
+  orderId    String            @db.Uuid
+  productId  String            @db.Uuid
+  quantity   Int
+  status     ReservationStatus @default(ACTIVE)
+  expiresAt  DateTime          @db.Timestamptz(6)
+  resolvedAt DateTime?         @db.Timestamptz(6)
+  createdAt  DateTime          @default(now()) @db.Timestamptz(6)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, productId])
+  @@index([status, expiresAt])
+}
+
+model Payment {
+  id                    String        @id @db.Uuid
+  orderId               String        @unique @db.Uuid
+  stripeSessionId       String        @unique
+  stripePaymentIntentId String?       @unique
+  amount                Int
+  currency              String        @default("USD")
+  status                PaymentStatus
+  paidAt                DateTime?     @db.Timestamptz(6)
+  createdAt             DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime      @updatedAt @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+}
+
+model WebhookEvent {
+  id            String             @id @db.Uuid
+  stripeEventId String             @unique
+  type          String
+  orderId       String?            @db.Uuid
+  sessionId     String?
+  payload       Json
+  status        WebhookEventStatus @default(RECEIVED)
+  attempts      Int                @default(0)
+  nextAttemptAt DateTime           @default(now()) @db.Timestamptz(6)
+  claimUntil    DateTime?          @db.Timestamptz(6)
+  lastErrorCode String?
+  receivedAt    DateTime           @default(now()) @db.Timestamptz(6)
+  processedAt   DateTime?          @db.Timestamptz(6)
+
+  order Order? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextAttemptAt])
+}
+
+model IdempotencyRecord {
+  id             String            @id @db.Uuid
+  userId         String            @db.Uuid
+  method         String
+  route          String
+  key            String
+  requestHash    String
+  status         IdempotencyStatus
+  responseStatus Int?
+  responseBody   Json?
+  resourceId     String?           @db.Uuid
+  claimUntil     DateTime?         @db.Timestamptz(6)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(6)
+  expiresAt      DateTime          @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, method, route, key])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id           String            @id @db.Uuid
+  actorId      String            @db.Uuid
+  resourceType AuditResourceType
+  resourceId   String            @db.Uuid
+  action       AuditAction
+  changes      Json
+  requestId    String            @db.Uuid
+  createdAt    DateTime          @default(now()) @db.Timestamptz(6)
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([resourceType, resourceId, createdAt])
+}
+
+model SecurityAuditOutbox {
+  id            String               @id @db.Uuid
+  eventType     String
+  occurredAt    DateTime             @default(now()) @db.Timestamptz(6)
+  requestId     String?              @db.Uuid
+  actorId       String?              @db.Uuid
+  resourceType  String?
+  resourceId    String?              @db.Uuid
+  outcome       SecurityAuditOutcome
+  reasonCode    String?
+  metadata      Json
+  exportedAt    DateTime?            @db.Timestamptz(6)
+  attempts      Int                  @default(0)
+  nextAttemptAt DateTime             @default(now()) @db.Timestamptz(6)
+
+  @@index([exportedAt, nextAttemptAt])
+}
+
+model KnowledgeDocument {
+  id          String                  @id @db.Uuid
+  documentId  String
+  title       String
+  version     String
+  status      KnowledgeDocumentStatus @default(DRAFT)
+  owner       String
+  approvedAt  DateTime?               @db.Timestamptz(6)
+  sourcePath  String
+  contentHash String
+  createdAt   DateTime                @default(now()) @db.Timestamptz(6)
+
+  chunks KnowledgeChunk[]
+
+  @@unique([documentId, version])
+}
+
+model KnowledgeChunk {
+  id                String @id @db.Uuid
+  documentVersionId String @db.Uuid
+  section           String
+  ordinal           Int
+  content           String
+
+  document KnowledgeDocument @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([documentVersionId, section, ordinal])
+  @@index([documentVersionId])
+}
