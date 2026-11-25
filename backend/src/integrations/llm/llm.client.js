@@ -158,6 +158,11 @@ class LlmClient {
       });
 
       if (!response.ok) {
+        if (!config.isTest) {
+          console.warn(
+            `[llm] Gemini API error: status=${response.status} model=${this.aiConfig.model}`
+          );
+        }
         throw new AppError(503, 'AI_UNAVAILABLE', 'Support assistant is temporarily unavailable.');
       }
 

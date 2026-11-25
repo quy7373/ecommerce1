@@ -132,20 +132,20 @@ function loadConfig(env = process.env) {
       preauthMaxAgeSec: 900,
     },
     jwt: {
-      issuer: env.JWT_ISSUER || 'ecommerce-api',
-      audience: env.JWT_AUDIENCE || 'ecommerce-web',
-      keyId: env.JWT_KEY_ID || 'key-2026-01',
+      issuer: 'ecommerce-api',
+      audience: 'ecommerce-web',
+      keyId: 'key-2026-01',
       privateKey: jwtPrivateKey,
       publicKey: jwtPublicKey,
       ttlSec: 900,
       clockToleranceSec: 60,
     },
     encryption: {
-      keyId: env.ENCRYPTION_KEY_ID || 'local-kms-key-1',
+      keyId: 'local-kms-key-1',
       masterKey: masterKeyBuffer,
     },
     mailEncryption: {
-      keyId: env.MAIL_ENCRYPTION_KEY_ID || 'local-mail-kms-key-1',
+      keyId: 'local-mail-kms-key-1',
       masterKey: mailMasterKeyBuffer,
     },
     auth: {
@@ -154,14 +154,11 @@ function loadConfig(env = process.env) {
       resetTokenTtlSec: 15 * 60,
       maxActiveTokensPerPurpose: 3,
       argon2: {
-        memoryCost: Math.max(19456, Number.parseInt(env.ARGON2_MEMORY_KIB || '19456', 10) || 19456),
-        timeCost: Math.max(2, Number.parseInt(env.ARGON2_TIME_COST || '2', 10) || 2),
-        parallelism: Math.max(1, Number.parseInt(env.ARGON2_PARALLELISM || '1', 10) || 1),
+        memoryCost: 19456,
+        timeCost: 2,
+        parallelism: 1,
       },
-      hashMaxConcurrency: Math.max(
-        1,
-        Number.parseInt(env.PASSWORD_HASH_MAX_CONCURRENCY || '4', 10) || 4
-      ),
+      hashMaxConcurrency: 4,
     },
     mail: {
       transport: env.MAIL_TRANSPORT || (isProduction ? 'smtp' : 'fake'),
@@ -171,15 +168,15 @@ function loadConfig(env = process.env) {
       smtpSecure: env.SMTP_SECURE === 'true',
       smtpUser: env.SMTP_USER || '',
       smtpPass: env.SMTP_PASS || '',
-      timeoutMs: Math.max(1000, Number.parseInt(env.SMTP_TIMEOUT_MS || '10000', 10) || 10000),
-      maxAttempts: Math.max(1, Number.parseInt(env.MAIL_MAX_ATTEMPTS || '5', 10) || 5),
+      timeoutMs: 10000,
+      maxAttempts: 5,
     },
     google: {
       clientId: env.GOOGLE_CLIENT_ID || '',
       clientSecret: env.GOOGLE_CLIENT_SECRET || '',
       redirectUri: env.GOOGLE_REDIRECT_URI || 'http://localhost:4000/api/v1/auth/google/callback',
-      authUrl: env.GOOGLE_AUTH_URL || 'https://accounts.google.com/o/oauth2/v2/auth',
-      tokenUrl: env.GOOGLE_TOKEN_URL || 'https://oauth2.googleapis.com/token',
+      authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+      tokenUrl: 'https://oauth2.googleapis.com/token',
       issuer: 'https://accounts.google.com',
     },
     stripe: {
@@ -191,14 +188,14 @@ function loadConfig(env = process.env) {
     ai: {
       enabled: env.AI_SUPPORT_ENABLED === 'true',
       provider: 'gemini',
-      apiBaseUrl: (env.GEMINI_API_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, ''),
+      apiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
       apiKey: env.GEMINI_API_KEY || env.LLM_PROVIDER_API_KEY || '',
-      model: env.GEMINI_MODEL || env.LLM_MODEL || 'gemini-2.5-flash',
-      dailyBudgetCents: Number.parseInt(env.AI_DAILY_BUDGET_CENTS || '0', 10),
-      timeoutMs: Number.parseInt(env.AI_REQUEST_TIMEOUT_MS || '10000', 10),
+      model: env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
+      dailyBudgetCents: 500,
+      timeoutMs: 15000,
     },
     worker: {
-      pollIntervalMs: Number.parseInt(env.WORKER_POLL_INTERVAL_MS || '5000', 10),
+      pollIntervalMs: 5000,
     },
   };
 
