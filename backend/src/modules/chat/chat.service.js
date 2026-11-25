@@ -69,17 +69,33 @@ class ChatService {
         try {
           const catalog = await this.productsRepository.listProducts({
             active: true,
-            sort: 'newest',
+            sort: 'price_desc',
             page: 1,
-            pageSize: 20,
+            pageSize: 200,
           });
           if (catalog?.data?.length > 0) {
-            catalogContext = catalog.data
-              .map(
-                (p) =>
-                  `- ${p.name} (${p.category.name}) — $${(p.price / 100).toFixed(2)} USD, ${p.availableQuantity} in stock: ${p.description}`
-              )
-              .join('\n');
+            const products = catalog.data;
+            const byCategory = new Map();
+            for (const p of products) {
+              const catName = p.category?.name || 'Uncategorized';
+              byCategory.set(catName, (byCategory.get(catName) || 0) + 1);
+            }
+            const categorySummary = Array.from(byCategory.entries())
+              .map(([name, count]) => `${name} (${count})`)
+              .join(', ');
+            const mostExpensive = products[0];
+            const cheapest = products[products.length - 1];
+            const lines = products.map(
+              (p) =>
+                `- ${p.name} [${p.category?.name || 'General'}] — $${(p.price / 100).toFixed(2)} USD, ${p.availableQuantity} in stock`
+            );
+            catalogContext = [
+              `STORE_CATALOG_SUMMARY: ${products.length} active products across ${byCategory.size} categories: ${categorySummary}.`,
+              `MOST_EXPENSIVE: ${mostExpensive.name} [${mostExpensive.category?.name || 'General'}] — $${(mostExpensive.price / 100).toFixed(2)} USD (${mostExpensive.availableQuantity} in stock).`,
+              `CHEAPEST: ${cheapest.name} [${cheapest.category?.name || 'General'}] — $${(cheapest.price / 100).toFixed(2)} USD (${cheapest.availableQuantity} in stock).`,
+              'ALL_ACTIVE_PRODUCTS (sorted highest to lowest price):',
+              ...lines,
+            ].join('\n');
           }
         } catch (_) {
           // Graceful fallback if catalog read fails

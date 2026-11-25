@@ -101,8 +101,9 @@ function loadConfig(env = process.env) {
     throw new Error('Live Stripe secret keys are prohibited in this test-mode deployment.');
   }
 
-  const appOrigin = (env.APP_ORIGIN || 'http://localhost:5173').replace(/\/+$/, '');
+  const appOrigin = (env.APP_ORIGIN || 'http://localhost:5174').replace(/\/+$/, '');
   const allowedOrigins = parseList(env.ALLOWED_ORIGINS, [appOrigin]).map((o) => o.replace(/\/+$/, ''));
+  const geminiApiKey = env.GEMINI_API_KEY || env.LLM_PROVIDER_API_KEY || '';
 
   const config = {
     nodeEnv,
@@ -161,13 +162,13 @@ function loadConfig(env = process.env) {
       hashMaxConcurrency: 4,
     },
     mail: {
-      transport: env.MAIL_TRANSPORT || (isProduction ? 'smtp' : 'fake'),
-      from: env.MAIL_FROM || 'no-reply@example.test',
-      smtpHost: env.SMTP_HOST || '',
-      smtpPort: Number.parseInt(env.SMTP_PORT || '587', 10),
-      smtpSecure: env.SMTP_SECURE === 'true',
-      smtpUser: env.SMTP_USER || '',
-      smtpPass: env.SMTP_PASS || '',
+      transport: 'fake',
+      from: 'no-reply@example.test',
+      smtpHost: '',
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: '',
+      smtpPass: '',
       timeoutMs: 10000,
       maxAttempts: 5,
     },
@@ -186,10 +187,10 @@ function loadConfig(env = process.env) {
     },
     approvedImageCdnOrigins: parseList(env.APPROVED_IMAGE_CDN_ORIGINS, []),
     ai: {
-      enabled: env.AI_SUPPORT_ENABLED === 'true',
+      enabled: env.AI_SUPPORT_ENABLED ? env.AI_SUPPORT_ENABLED === 'true' : Boolean(geminiApiKey),
       provider: 'gemini',
       apiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-      apiKey: env.GEMINI_API_KEY || env.LLM_PROVIDER_API_KEY || '',
+      apiKey: geminiApiKey,
       model: env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
       dailyBudgetCents: 500,
       timeoutMs: 15000,

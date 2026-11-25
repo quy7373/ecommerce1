@@ -5,6 +5,7 @@ const { noStoreMiddleware } = require('../../middleware/requestContext');
 const { requireEmptyQuery, validateBody } = require('../../middleware/validate');
 const { createRateLimitMiddleware } = require('../../middleware/rateLimit');
 const { methodNotAllowed } = require('../../middleware/errorHandler');
+const { isAllowedOrigin } = require('../../middleware/auth');
 const {
   registerBodySchema,
   verifyEmailBodySchema,
@@ -220,6 +221,22 @@ function createAuthRouter({ authService, authMiddleware, rateLimiter }) {
         ...cookieBaseOptions(),
         maxAge: config.cookies.oauthMaxAgeSec * 1000,
       });
+      if (!config.isProduction) {
+        const rawSource = req.headers.origin || req.headers.referer;
+        if (rawSource) {
+          try {
+            const callerOrigin = new URL(rawSource).origin;
+            if (isAllowedOrigin(callerOrigin)) {
+              res.cookie('dev_oauth_origin', callerOrigin, {
+                ...cookieBaseOptions(),
+                maxAge: config.cookies.oauthMaxAgeSec * 1000,
+              });
+            }
+          } catch (_) {
+            // ignore malformed referer
+          }
+        }
+      }
       return res.redirect(302, redirectUrl);
     } catch (err) {
       return next(err);
@@ -230,6 +247,7 @@ function createAuthRouter({ authService, authMiddleware, rateLimiter }) {
   router.get('/google/callback', authIpLimit, authMiddleware.optionalAuth, async (req, res, next) => {
     try {
       const browserBindingCookie = req.cookies?.[config.cookies.oauthName];
+      const returnOriginCookie = req.cookies?.dev_oauth_origin;
       const { jwtToken, redirectUrl } = await authService.handleGoogleCallback({
         query: req.query,
         browserBindingCookie,
@@ -238,15 +256,26 @@ function createAuthRouter({ authService, authMiddleware, rateLimiter }) {
       });
 
       res.clearCookie(config.cookies.oauthName, cookieBaseOptions());
+      if (!config.isProduction) {
+        res.clearCookie('dev_oauth_origin', cookieBaseOptions());
+      }
 
       res.cookie(config.cookies.sessionName, jwtToken, {
         ...cookieBaseOptions(),
         maxAge: config.cookies.sessionMaxAgeSec * 1000,
       });
 
-      return res.redirect(302, redirectUrl);
+      let finalRedirectUrl = redirectUrl;
+      if (!config.isProduction && returnOriginCookie && isAllowedOrigin(returnOriginCookie)) {
+        finalRedirectUrl = `${returnOriginCookie}/account`;
+      }
+
+      return res.redirect(302, finalRedirectUrl);
     } catch (err) {
       res.clearCookie(config.cookies.oauthName, cookieBaseOptions());
+      if (!config.isProduction) {
+        res.clearCookie('dev_oauth_origin', cookieBaseOptions());
+      }
       return next(err);
     }
   });

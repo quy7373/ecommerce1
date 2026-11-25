@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { config } = require('../../config/env');
 const { AppError } = require('../../config/errors');
 const { encryptEnvelope, decryptEnvelope } = require('../../config/crypto');
 const { runSerializableTransaction } = require('../../config/prisma');
@@ -11,12 +12,27 @@ function decryptOrderAddress(order) {
   if (!order.shippingAddress) {
     throw new AppError(500, 'INTERNAL_ERROR', 'Order shipping address integrity error.');
   }
-  const plaintext = decryptEnvelope(order.shippingAddress, {
-    entity: 'Order',
-    rowId: order.id,
-    field: 'shippingAddress',
-  });
-  return JSON.parse(plaintext);
+  try {
+    const plaintext = decryptEnvelope(order.shippingAddress, {
+      entity: 'Order',
+      rowId: order.id,
+      field: 'shippingAddress',
+    });
+    return JSON.parse(plaintext);
+  } catch (err) {
+    if (!config.isProduction && !config.isTest) {
+      return {
+        fullName: 'Unavailable (old encryption key)',
+        line1: 'Encrypted with a previous dev key',
+        line2: null,
+        city: '-',
+        state: '-',
+        postalCode: '00000',
+        country: 'US',
+      };
+    }
+    throw err;
+  }
 }
 
 function toOrderDto(order) {

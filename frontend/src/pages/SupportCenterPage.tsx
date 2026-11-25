@@ -4,15 +4,12 @@ import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ApiError } from '@/lib/apiClient';
-import type { SupportCitation } from '@/lib/types';
 import { sendSupportMessage } from '@/features/chatbot/supportApi';
-import { CitationList } from '@/features/chatbot/CitationList';
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
   text: string;
-  citations?: SupportCitation[];
   escalated?: boolean;
 }
 
@@ -49,7 +46,6 @@ export function SupportCenterPage() {
         id: `bot-${Date.now()}`,
         sender: 'assistant',
         text: response.answer,
-        citations: response.citations,
         escalated: response.escalated,
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -163,10 +159,6 @@ export function SupportCenterPage() {
                       <AlertTriangle className="h-4 w-4 shrink-0 text-[#9A5B13]" aria-hidden="true" />
                       <span>Escalated to human store support (no approved source confirmed).</span>
                     </div>
-                  )}
-
-                  {msg.sender === 'assistant' && msg.citations && msg.citations.length > 0 && (
-                    <CitationList citations={msg.citations} />
                   )}
                 </div>
 

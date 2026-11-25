@@ -6,7 +6,11 @@ function isAllowedOrigin(origin) {
   if (!origin || typeof origin !== 'string') return false;
   const normalized = origin.trim().replace(/\/+$/, '');
   if (!normalized || normalized === 'null') return false;
-  return config.allowedOrigins.includes(normalized);
+  if (config.allowedOrigins.includes(normalized)) return true;
+  if (!config.isProduction && !config.isTest) {
+    return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(normalized);
+  }
+  return false;
 }
 
 function createAuthMiddleware(authRepository) {

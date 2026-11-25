@@ -58,12 +58,11 @@ Per `docs/database/erd.md` and `docs/database/data-dictionary.md`, the Prisma sc
    ```bash
    cp .env.example .env
    ```
-   Fill in `DATABASE_URL` and any external provider credentials you intend to exercise:
-   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (for Google OIDC login)
+   Fill in the 6 main environment keys in `.env` (all runtime, JWT, encryption, Argon2, worker, and mail defaults are configured in `src/config/env.js`):
+   - `DATABASE_URL` (PostgreSQL connection string)
    - `STRIPE_SECRET_KEY` (`sk_test_...` only), `STRIPE_WEBHOOK_SECRET` (`whsec_...`) (for Stripe Checkout & webhooks)
-   - `JWT_PRIVATE_KEY_PEM`, `JWT_PUBLIC_KEY_PEM` (ES256 P-256 keys; required in production, ephemeral fallback in dev/test)
-   - `ENCRYPTION_MASTER_KEY` (32-byte hex or base64 key; required in production)
-   - `AI_SUPPORT_ENABLED=true`, `GEMINI_API_KEY` (only after owner approval; model `gemini-3.5-flash-lite` and API base URL are configured in `src/config/env.js`)
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (for Google OIDC login)
+   - `GEMINI_API_KEY` (enables Gemini AI Support automatically using `gemini-3.5-flash-lite`)
 
 3. Apply database migrations (includes PostgreSQL `CHECK` constraints and partial unique indexes):
    ```bash
@@ -96,10 +95,7 @@ Per `docs/database/erd.md` and `docs/database/data-dictionary.md`, the Prisma sc
 
 ### AUTH-002 Email/Password & Mail Configuration
 
-Additional keys in `.env.example` (Argon2 parameters, timeouts, retry limits, and key IDs are hardcoded in `src/config/env.js`):
-- `AUTH_EMAIL_HMAC_SECRET`: secret for HMAC-keyed email quotas and advisory locks.
-- `MAIL_ENCRYPTION_MASTER_KEY`: separate AES-256-GCM wrapping key used exclusively by `AuthMailOutbox` and `worker:mail`.
-- `MAIL_TRANSPORT` (`fake` for dev/test, `smtp` for real SMTP), `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`.
+All Argon2id parameters, key IDs, retry limits, and local dev mail settings (`transport: 'fake'`) are configured directly in `src/config/env.js`. No SMTP or email env keys are required in `.env`.
 
 ## Health Checks & API Documentation
 
